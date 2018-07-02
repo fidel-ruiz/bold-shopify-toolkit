@@ -207,26 +207,7 @@ class Client
 
             $result = \GuzzleHttp\json_decode((string) $response->getBody(), true);
         } catch (RequestException $e) {
-            $response = $e->getResponse();
-
-            if (!$response) {
-                throw $e;
-            }
-
-            switch ($response->getStatusCode()) {
-                case 401:
-                    throw new UnauthorizedException($e->getMessage());
-                case 404:
-                    throw new NotFoundException($e->getMessage());
-                case 406:
-                    throw new NotAcceptableException($e->getMessage());
-                case 422:
-                    throw new UnprocessableEntityException($e->getMessage());
-                case 429:
-                    throw new TooManyRequestsException($e->getMessage());
-                default:
-                    throw $e;
-            }
+            $this->handleException($e);
         } catch (\Exception $e) {
             $response = null;
         } finally {
@@ -235,7 +216,7 @@ class Client
 
         return $result;
     }
-
+   
     /**
      * @param Request $request
      *
@@ -271,7 +252,28 @@ class Client
                 }
             }
         } catch (RequestException $e) {
-            $response = $e->getResponse();
+            $this->handleException($e);
+        } catch (\Exception $e) {
+            $response = null;
+        } finally {
+            $this->requestHookInterface->afterRequest($response);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param RequestException $e
+     * 
+     * @throws NotAcceptableException
+     * @throws NotFoundException
+     * @throws TooManyRequestsException
+     * @throws UnauthorizedException
+     * @throws UnprocessableEntityException
+     * @throws RequestException
+     */
+    private function handleException(RequestException $e){
+        $response = $e->getResponse();
 
             if (!$response) {
                 throw $e;
@@ -291,14 +293,8 @@ class Client
                 default:
                     throw $e;
             }
-        } catch (\Exception $e) {
-            $response = null;
-        } finally {
-            $this->requestHookInterface->afterRequest($response);
-        }
-
-        return $result;
     }
+
 
     /**
      * @param string $location
